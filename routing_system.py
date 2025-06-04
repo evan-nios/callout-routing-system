@@ -8,7 +8,7 @@ class CallOutRoutingSystem:
         self.manager_schedule = {
             'Manager Name': ['Dia', 'Kat'],
             'Location': ['Brooklyn', 'Manhattan'],
-            'Phone Number': ['555-0123', '555-0456'],
+            'Phone Number': ['+13473150211', '+13477168143'],
             'Sunday': ['-', '-'],
             'Monday': ['-', '8:45 AM - 4:45 PM'],
             'Tuesday': ['12:00 PM - 8:00 PM', '8:45 AM - 4:45 PM'],
