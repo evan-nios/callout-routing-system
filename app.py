@@ -56,6 +56,13 @@ def parse_working_location(message_content, staff_home_location):
         # Default to home location if not specified
         return staff_home_location
 
+def get_manager_phones():
+    """Get all manager phone numbers from the routing system"""
+    manager_contacts = routing_system.get_manager_contact_info(
+        routing_system.df_schedule['Manager Name'].tolist()
+    )
+    return [contact['phone'] for contact in manager_contacts]
+
 def send_sms(to_phone, message):
     """Send SMS via Twilio"""
     try:
@@ -115,6 +122,13 @@ def handle_incoming_sms():
     resp = MessagingResponse()
     
     try:
+        # Check if this is a manager responding to a call-out
+        manager_phones = get_manager_phones()
+        if from_phone in manager_phones:
+            resp.message("✅ Thank you for confirming receipt of the call-out alert.")
+            logger.info(f"Manager {from_phone} confirmed receipt: {message_body}")
+            return str(resp)
+
         # Verify this is from a known staff member
         if from_phone not in STAFF_LOCATIONS:
             error_msg = f"❌ Unknown phone number {from_phone}. Please contact IT support to register your number."
