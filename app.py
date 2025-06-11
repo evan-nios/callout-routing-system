@@ -827,9 +827,64 @@ def test_routing_endpoint():
             staff_working = data.get('staff_working_location') 
             test_time_str = data.get('test_time', datetime.now().strftime('%A %H:%M'))
             
-            responsible_managers, contact_info = routing_system.test_routing(
-                staff_home, staff_working, test_time_str
+            # Parse the test time string to create a datetime object
+            try:
+                # Handle formats like "Tuesday 10:30" or "Tuesday 10:30 AM"
+                if any(day in test_time_str for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']):
+                    parts = test_time_str.split()
+                    if len(parts) >= 2:
+                        day_name = parts[0]
+                        time_str = parts[1]
+                        
+                        # Convert to datetime object
+                        today = datetime.now()
+                        days_ahead = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].index(day_name) - today.weekday()
+                        if days_ahead <= 0:
+                            days_ahead += 7
+                        target_date = today + timedelta(days=days_ahead)
+                        
+                        # Parse time (handle both 24hr and 12hr formats)
+                        try:
+                            if 'AM' in time_str.upper() or 'PM' in time_str.upper():
+                                test_time = datetime.strptime(time_str, '%I:%M %p').time()
+                            else:
+                                test_time = datetime.strptime(time_str, '%H:%M').time()
+                        except:
+                            test_time = datetime.strptime(time_str, '%H:%M').time()
+                        
+                        test_datetime = datetime.combine(target_date.date(), test_time)
+                    else:
+                        test_datetime = datetime.now()
+                else:
+                    test_datetime = datetime.strptime(test_time_str, '%Y-%m-%d %H:%M')
+            except:
+                test_datetime = datetime.now()
+            
+            # DEBUG: Add logging to see what's happening
+            logger.info(f"DEBUG: Testing with staff_home={staff_home}, staff_working={staff_working}, datetime={test_datetime}")
+            
+            # Check what managers are found by location
+            direct_managers = routing_system.get_managers_by_location(staff_working)
+            logger.info(f"DEBUG: Direct managers for {staff_working}: {direct_managers}")
+            
+            # Check if manager is working
+            if direct_managers:
+                for manager in direct_managers:
+                    is_working = routing_system.is_manager_working(manager, test_datetime)
+                    logger.info(f"DEBUG: Is {manager} working at {test_datetime}? {is_working}")
+            
+            # Use the routing system directly like the SMS handler does
+            responsible_managers = routing_system.determine_responsible_manager(
+                staff_home, 
+                staff_working, 
+                test_datetime
             )
+            
+            logger.info(f"DEBUG: Responsible managers returned: {responsible_managers}")
+            
+            # Get contact info for the responsible managers
+            contact_info = routing_system.get_manager_contact_info(responsible_managers)
+            logger.info(f"DEBUG: Contact info returned: {contact_info}")
             
             result = {
                 'success': True,
@@ -837,14 +892,19 @@ def test_routing_endpoint():
                 'contact_info': contact_info,
                 'test_time': test_time_str,
                 'staff_home_location': staff_home,
-                'staff_working_location': staff_working
+                'staff_working_location': staff_working,
+                'parsed_datetime': test_datetime.strftime('%Y-%m-%d %H:%M:%S')
             }
             
             if request.is_json:
                 return jsonify(result)
             else:
                 # Return HTML response for form submission
-                managers_list = '<br>'.join([f"• {c['name']} at {c['location']} ({c['phone']})" for c in contact_info])
+                if contact_info:
+                    managers_list = '<br>'.join([f"• {c['name']} at {c['location']} ({c['phone']})" for c in contact_info])
+                else:
+                    managers_list = "❌ No managers found (check routing logic)"
+                
                 return f'''
                 <html>
                 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px;">
@@ -852,7 +912,14 @@ def test_routing_endpoint():
                     <p><strong>Staff Home Location:</strong> {staff_home}</p>
                     <p><strong>Staff Working Location:</strong> {staff_working}</p>
                     <p><strong>Test Time:</strong> {test_time_str}</p>
+                    <p><strong>Parsed DateTime:</strong> {test_datetime.strftime('%Y-%m-%d %H:%M:%S')}</p>
                     <h3>Responsible Managers:</h3>
+                    <p>{managers_list}</p>
+                    <h3>Debug Info:</h3>
+                    <p><strong>Manager Names:</strong> {', '.join(responsible_managers) if responsible_managers else 'None'}</p>
+                    <p><strong>Total Contacts:</strong> {len(contact_info)}</p>
+                    <p><strong>Direct Managers Found:</strong> {', '.join(direct_managers) if 'direct_managers' in locals() else 'Unknown'}</p>
+                    <p><em>Check server logs for detailed debug information</em></p>
                     <p><a href="/test-routing">← Test Again</a></p>
                 </body>
                 </html>
@@ -860,52 +927,11 @@ def test_routing_endpoint():
                 
         except Exception as e:
             error_result = {'success': False, 'error': str(e)}
+            logger.error(f"DEBUG: Exception in test routing: {e}")
             if request.is_json:
                 return jsonify(error_result), 400
             else:
                 return f'<html><body><h2>❌ Error:</h2><p>{str(e)}</p><p><a href="/test-routing">← Try Again</a></p></body></html>'
-    
-    # GET request - return test form
-    return '''
-    <html>
-    <head><title>Test Call-Out Routing</title></head>
-    <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px;">
-        <h2>🧪 Test Call-Out Routing</h2>
-        <form method="post">
-            <p>
-                <label><strong>Staff Home Location:</strong></label><br>
-                <select name="staff_home_location" required style="width: 100%; padding: 8px; margin-top: 5px;">
-                    <option value="">Select...</option>
-                    <option value="Brooklyn">Brooklyn</option>
-                    <option value="Manhattan">Manhattan</option>
-                    <option value="Queens">Queens</option>
-                </select>
-            </p>
-            <p>
-                <label><strong>Staff Working Location Today:</strong></label><br>
-                <select name="staff_working_location" required style="width: 100%; padding: 8px; margin-top: 5px;">
-                    <option value="">Select...</option>
-                    <option value="Brooklyn">Brooklyn</option>
-                    <option value="Manhattan">Manhattan</option>
-                    <option value="Queens">Queens</option>
-                </select>
-            </p>
-            <p>
-                <label><strong>Test Time:</strong></label><br>
-                <input type="text" name="test_time" placeholder="Tuesday 10:30" required 
-                       style="width: 100%; padding: 8px; margin-top: 5px;">
-                <small>Format: DayName HH:MM (e.g., "Wednesday 14:30")</small>
-            </p>
-            <p>
-                <button type="submit" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
-                    Test Routing
-                </button>
-            </p>
-        </form>
-        <p><a href="/">← Back to Home</a></p>
-    </body>
-    </html>
-    '''
 
 @app.route('/schedule')
 def view_schedule():
