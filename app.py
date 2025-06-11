@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 import logging
 from dotenv import load_dotenv
+import pandas as pd
 
 # Load environment variables
 load_dotenv()
@@ -29,32 +30,493 @@ twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 # Initialize routing system
 routing_system = CallOutRoutingSystem()
 
-# Staff phone number to location mapping
-# TODO: Update these with real phone numbers
-STAFF_LOCATIONS = {
-    '+16316243242': {'home': 'Brooklyn', 'name': 'Evan'},
-    '+15552222222': {'home': 'Manhattan', 'name': 'Jane Smith'},
-    '+15553333333': {'home': 'Brooklyn', 'name': 'Mike Johnson'},
-    '+15554444444': {'home': 'Manhattan', 'name': 'Sarah Wilson'},
+# COMPLETE STAFF CONFIGURATION with daily schedules - 29 staff members
+STAFF_SCHEDULES = {
+    # MANHATTAN STAFF (19 people)
+    '+19175778296': {  # Delisha
+        'name': 'Delisha',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Manhattan',
+            'Monday': 'Manhattan',
+            'Tuesday': 'Off',
+            'Wednesday': 'Manhattan',
+            'Thursday': 'Manhattan',
+            'Friday': 'Off',
+            'Saturday': 'Off'
+        }
+    },
+    '+16315208051': {  # Tina
+        'name': 'Tina',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Manhattan',
+            'Monday': 'Manhattan',
+            'Tuesday': 'Manhattan',
+            'Wednesday': 'Off',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Off'
+        }
+    },
+    '+19173199423': {  # Sanae
+        'name': 'Sanae',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Manhattan',
+            'Tuesday': 'Manhattan',
+            'Wednesday': 'Off',
+            'Thursday': 'Off',
+            'Friday': 'Manhattan',
+            'Saturday': 'Manhattan'
+        }
+    },
+    '+17187578709': {  # Tara
+        'name': 'Tara',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Brooklyn',
+            'Monday': 'Manhattan',
+            'Tuesday': 'Brooklyn',
+            'Wednesday': 'Brooklyn',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Off'
+        }
+    },
+    '+19178932590': {  # Zelina
+        'name': 'Zelina',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Brooklyn',
+            'Monday': 'Manhattan',
+            'Tuesday': 'Brooklyn',
+            'Wednesday': 'Off',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Off'
+        }
+    },
+    '+16145816298': {  # Regi
+        'name': 'Regi',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Manhattan',
+            'Monday': 'Manhattan',
+            'Tuesday': 'Manhattan',
+            'Wednesday': 'Manhattan',
+            'Thursday': 'Manhattan',
+            'Friday': 'Off',
+            'Saturday': 'Off'
+        }
+    },
+    '+17163162623': {  # Rabi
+        'name': 'Rabi',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Manhattan',
+            'Monday': 'Manhattan',
+            'Tuesday': 'Queens',
+            'Wednesday': 'Manhattan',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Off'
+        }
+    },
+    '+19293287308': {  # Janaye
+        'name': 'Janaye',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Manhattan',
+            'Wednesday': 'Off',
+            'Thursday': 'Off',
+            'Friday': 'Manhattan',
+            'Saturday': 'Queens'
+        }
+    },
+    '+19293739694': {  # Adrea
+        'name': 'Adrea',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Manhattan',
+            'Wednesday': 'Manhattan',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Manhattan'
+        }
+    },
+    '+19293725622': {  # Dalmania
+        'name': 'Dalmania',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Manhattan',
+            'Wednesday': 'Manhattan',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Manhattan'
+        }
+    },
+    '+15512455660': {  # Rolanda
+        'name': 'Rolanda',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Manhattan',
+            'Monday': 'Off',
+            'Tuesday': 'Manhattan',
+            'Wednesday': 'Off',
+            'Thursday': 'Manhattan',
+            'Friday': 'Manhattan',
+            'Saturday': 'Off'
+        }
+    },
+    '+19174363971': {  # Jackalin
+        'name': 'Jackalin',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Manhattan',
+            'Wednesday': 'Off',
+            'Thursday': 'Brooklyn',
+            'Friday': 'Brooklyn',
+            'Saturday': 'Brooklyn'
+        }
+    },
+    '+19542009650': {  # Mia
+        'name': 'Mia',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Queens',
+            'Wednesday': 'Off',
+            'Thursday': 'Manhattan',
+            'Friday': 'Off',
+            'Saturday': 'Manhattan'
+        }
+    },
+    '+19172837518': {  # Jessica
+        'name': 'Jessica',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Off',
+            'Wednesday': 'Manhattan',
+            'Thursday': 'Manhattan',
+            'Friday': 'Manhattan',
+            'Saturday': 'Manhattan'
+        }
+    },
+    '+13479510800': {  # Tshazia
+        'name': 'Tshazia',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Off',
+            'Wednesday': 'Manhattan',
+            'Thursday': 'Manhattan',
+            'Friday': 'Manhattan',
+            'Saturday': 'Manhattan'
+        }
+    },
+    '+16467615002': {  # Jona-Ann
+        'name': 'Jona-Ann',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Off',
+            'Wednesday': 'Manhattan',
+            'Thursday': 'Manhattan',
+            'Friday': 'Manhattan',
+            'Saturday': 'Manhattan'
+        }
+    },
+    '+19292182196': {  # Lee (Olga Lee)
+        'name': 'Lee',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Manhattan',
+            'Monday': 'Off',
+            'Tuesday': 'Off',
+            'Wednesday': 'Off',
+            'Thursday': 'Manhattan',
+            'Friday': 'Off',
+            'Saturday': 'Off'
+        }
+    },
+    '+13472939475': {  # Andrea
+        'name': 'Andrea',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Brooklyn',
+            'Tuesday': 'Off',
+            'Wednesday': 'Brooklyn',
+            'Thursday': 'Off',
+            'Friday': 'Manhattan',
+            'Saturday': 'Manhattan'
+        }
+    },
+    '+17189137388': {  # Briyanna
+        'name': 'Briyanna',
+        'home_location': 'Manhattan',
+        'schedule': {
+            'Sunday': 'Manhattan',
+            'Monday': 'Off',
+            'Tuesday': 'Brooklyn',
+            'Wednesday': 'Brooklyn',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Brooklyn'
+        }
+    },
+
+    # BROOKLYN STAFF (17 people)
+    '+19172928301': {  # Christina
+        'name': 'Christina',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Brooklyn',
+            'Monday': 'Brooklyn',
+            'Tuesday': 'Off',
+            'Wednesday': 'Off',
+            'Thursday': 'Brooklyn',
+            'Friday': 'Brooklyn',
+            'Saturday': 'Off'
+        }
+    },
+    '+16464138781': {  # Olivia
+        'name': 'Olivia',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Brooklyn',
+            'Monday': 'Brooklyn',
+            'Tuesday': 'Brooklyn',
+            'Wednesday': 'Off',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Off'
+        }
+    },
+    '+17704680674': {  # Carli
+        'name': 'Carli',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Brooklyn',
+            'Monday': 'Off',
+            'Tuesday': 'Brooklyn',
+            'Wednesday': 'Brooklyn',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Off'
+        }
+    },
+    '+18624066889': {  # Ruth Calina
+        'name': 'Ruth Calina',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Brooklyn',
+            'Monday': 'Off',
+            'Tuesday': 'Off',
+            'Wednesday': 'Brooklyn',
+            'Thursday': 'Brooklyn',
+            'Friday': 'Brooklyn',
+            'Saturday': 'Off'
+        }
+    },
+    '+13473149438': {  # Raquel
+        'name': 'Raquel',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Brooklyn',
+            'Monday': 'Brooklyn',
+            'Tuesday': 'Brooklyn',
+            'Wednesday': 'Off',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Off'
+        }
+    },
+    '+13472435314': {  # Lorna
+        'name': 'Lorna',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Brooklyn',
+            'Monday': 'Brooklyn',
+            'Tuesday': 'Off',
+            'Wednesday': 'Off',
+            'Thursday': 'Brooklyn',
+            'Friday': 'Brooklyn',
+            'Saturday': 'Off'
+        }
+    },
+    '+19177146698': {  # Khadijah
+        'name': 'Khadijah',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Brooklyn',
+            'Tuesday': 'Off',
+            'Wednesday': 'Off',
+            'Thursday': 'Brooklyn',
+            'Friday': 'Brooklyn',
+            'Saturday': 'Brooklyn'
+        }
+    },
+    '+13477944000': {  # Kimberly
+        'name': 'Kimberly',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Brooklyn',
+            'Tuesday': 'Off',
+            'Wednesday': 'Off',
+            'Thursday': 'Brooklyn',
+            'Friday': 'Brooklyn',
+            'Saturday': 'Brooklyn'
+        }
+    },
+    '+19174127601': {  # Colleen
+        'name': 'Colleen',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Brooklyn',
+            'Tuesday': 'Queens',
+            'Wednesday': 'Brooklyn',
+            'Thursday': 'Queens',
+            'Friday': 'Queens',
+            'Saturday': 'Queens'
+        }
+    },
+    '+18457458091': {  # Jessica.A
+        'name': 'Jessica.A',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Brooklyn',
+            'Wednesday': 'Off',
+            'Thursday': 'Brooklyn',
+            'Friday': 'Brooklyn',
+            'Saturday': 'Brooklyn'
+        }
+    },
+    '+13477727743': {  # Sharon
+        'name': 'Sharon',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Brooklyn',
+            'Wednesday': 'Brooklyn',
+            'Thursday': 'Off',
+            'Friday': 'Off',
+            'Saturday': 'Brooklyn'
+        }
+    },
+    '+19296276655': {  # Maiyah
+        'name': 'Maiyah',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Off',
+            'Wednesday': 'Brooklyn',
+            'Thursday': 'Brooklyn',
+            'Friday': 'Brooklyn',
+            'Saturday': 'Brooklyn'
+        }
+    },
+
+    # QUEENS STAFF (6 people)
+    '+16465893995': {  # Maura
+        'name': 'Maura',
+        'home_location': 'Queens',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Queens',
+            'Wednesday': 'Off',
+            'Thursday': 'Queens',
+            'Friday': 'Queens',
+            'Saturday': 'Queens'
+        }
+    },
+    '+16463745159': {  # Lerdy
+        'name': 'Lerdy',
+        'home_location': 'Queens',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Off',
+            'Wednesday': 'Off',
+            'Thursday': 'Queens',
+            'Friday': 'Queens',
+            'Saturday': 'Queens'
+        }
+    },
+
+    # EXISTING STAFF (keep your entry)
+    '+16316243242': {  # Evan
+        'name': 'Evan',
+        'home_location': 'Brooklyn',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Brooklyn',
+            'Tuesday': 'Manhattan', 
+            'Wednesday': 'Brooklyn',
+            'Thursday': 'Brooklyn',
+            'Friday': 'Manhattan',
+            'Saturday': 'Brooklyn'
+        }
+    }
 }
 
-def parse_working_location(message_content, staff_home_location):
+def get_staff_working_location_today(phone_number, call_out_datetime):
     """
-    Parse the working location from the message content
-    Staff can specify where they're working, otherwise defaults to home location
+    Get where staff is scheduled to work today (no parsing/overrides)
+    Returns the scheduled location or home location if off
     """
-    message_lower = message_content.lower()
+    if phone_number not in STAFF_SCHEDULES:
+        return None
     
-    # Look for location keywords
-    if any(word in message_lower for word in ['manhattan', 'mnh', 'man']):
-        return 'Manhattan'
-    elif any(word in message_lower for word in ['brooklyn', 'bkn', 'brk']):
-        return 'Brooklyn'
-    elif any(word in message_lower for word in ['queens', 'qns', 'que']):
-        return 'Queens'
-    else:
-        # Default to home location if not specified
-        return staff_home_location
+    staff_info = STAFF_SCHEDULES[phone_number]
+    day_name = call_out_datetime.strftime('%A')
+    
+    scheduled_location = staff_info['schedule'].get(day_name, 'Off')
+    
+    # If they're scheduled to be off, use their home location as fallback
+    if scheduled_location == 'Off':
+        return staff_info['home_location']
+    
+    return scheduled_location
+
+def get_staff_schedule_display():
+    """
+    Generate HTML table showing all staff schedules
+    """
+    df_staff = pd.DataFrame([
+        {
+            'Name': info['name'],
+            'Phone': phone,
+            'Home Location': info['home_location'],
+            **info['schedule']
+        }
+        for phone, info in STAFF_SCHEDULES.items()
+    ])
+    
+    return df_staff.to_html(index=False, classes='staff-schedule-table')
 
 def get_manager_phones():
     """Get all manager phone numbers from the routing system"""
@@ -91,8 +553,8 @@ def home():
         <h2>How to Use:</h2>
         <ol>
             <li>Staff text the Twilio number with their call-out message</li>
-            <li>Include location if working away from home: "Can't come in today - working at Manhattan"</li>
-            <li>System automatically routes to appropriate manager</li>
+            <li>System uses their scheduled location for today</li>
+            <li>System automatically routes to appropriate manager using complex logic</li>
             <li>Staff receives confirmation of who was notified</li>
         </ol>
         
@@ -100,7 +562,8 @@ def home():
         <ul>
             <li><a href="/test-routing">Test Routing Logic</a></li>
             <li><a href="/health">Health Check</a></li>
-            <li><a href="/schedule">View Current Schedule</a></li>
+            <li><a href="/schedule">View Manager Schedule</a></li>
+            <li><a href="/staff-schedule">View Staff Schedule</a></li>
         </ul>
         
         <p><em>Last updated: ''' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + '''</em></p>
@@ -110,7 +573,7 @@ def home():
 
 @app.route('/webhook/sms', methods=['POST'])
 def handle_incoming_sms():
-    """Handle incoming SMS from staff call-outs"""
+    """Handle incoming SMS from staff call-outs with enhanced scheduling"""
     
     # Get message details from Twilio
     from_phone = request.form.get('From')
@@ -123,32 +586,47 @@ def handle_incoming_sms():
     
     try:
         # Check if this is a manager responding to a call-out
-        manager_phones = get_manager_phones()
-        if from_phone in manager_phones:
+        manager_phones = routing_system.get_manager_contact_info(
+            routing_system.df_schedule['Manager Name'].tolist()
+        )
+        manager_phone_list = [contact['phone'] for contact in manager_phones]
+        
+        if from_phone in manager_phone_list:
             resp.message("✅ Thank you for confirming receipt of the call-out alert.")
             logger.info(f"Manager {from_phone} confirmed receipt: {message_body}")
             return str(resp)
 
         # Verify this is from a known staff member
-        if from_phone not in STAFF_LOCATIONS:
+        if from_phone not in STAFF_SCHEDULES:
             error_msg = f"❌ Unknown phone number {from_phone}. Please contact IT support to register your number."
             logger.warning(error_msg)
             resp.message(error_msg)
             return str(resp)
         
-        staff_info = STAFF_LOCATIONS[from_phone]
+        staff_info = STAFF_SCHEDULES[from_phone]
         staff_name = staff_info['name']
-        staff_home_location = staff_info['home']
-        
-        # Parse working location from message
-        staff_working_location = parse_working_location(message_body, staff_home_location)
+        staff_home_location = staff_info['home_location']
         
         # Get current time for routing decision
         current_time = datetime.now()
         
-        logger.info(f"Processing call-out: {staff_name} (Home: {staff_home_location}, Working: {staff_working_location})")
+        # Get where staff is scheduled to work today
+        staff_working_location = get_staff_working_location_today(from_phone, current_time)
         
-        # Determine responsible managers using your routing logic
+        if not staff_working_location:
+            error_msg = "❌ Could not determine your work location. Please contact IT support."
+            logger.warning(f"Could not determine work location for {from_phone}")
+            resp.message(error_msg)
+            return str(resp)
+        
+        logger.info(f"Processing call-out: {staff_name} (Home: {staff_home_location}, Working Today: {staff_working_location})")
+        
+        # Determine responsible managers using sophisticated routing logic:
+        # 1. Check if DIRECT manager (at working location) is actively working
+        # 2. Check if AWAY managers are actively working  
+        # 3. Compare start times: away manager vs direct manager
+        # 4. Fallback to HOME manager if staff working away from home
+        # 5. Emergency fallbacks
         responsible_managers = routing_system.determine_responsible_manager(
             staff_home_location, 
             staff_working_location, 
@@ -165,12 +643,13 @@ def handle_incoming_sms():
         manager_contacts = routing_system.get_manager_contact_info(responsible_managers)
         
         # Create formatted message for managers
+        day_name = current_time.strftime('%A')
         manager_message = f"""🚨 STAFF CALL-OUT ALERT
 
 Staff: {staff_name}
 Phone: {from_phone}
 Home Location: {staff_home_location}
-Working Today: {staff_working_location}
+Working Today ({day_name}): {staff_working_location}
 Time: {current_time.strftime('%A, %B %d at %I:%M %p')}
 
 Message: "{message_body}"
@@ -195,6 +674,8 @@ Please respond to confirm receipt."""
             confirmation = f"""✅ Call-out received and forwarded to:
 
 {chr(10).join(['• ' + manager for manager in sent_to])}
+
+Your schedule: Working at {staff_working_location} today
 
 Your manager(s) will respond shortly."""
             
@@ -343,6 +824,51 @@ def view_schedule():
     except Exception as e:
         return f'<html><body><h2>❌ Error loading schedule:</h2><p>{str(e)}</p><p><a href="/">← Back to Home</a></p></body></html>'
 
+@app.route('/staff-schedule')
+def view_staff_schedule():
+    """View current staff schedule"""
+    try:
+        schedule_html = get_staff_schedule_display()
+        
+        return f'''
+        <html>
+        <head>
+            <title>Staff Schedule</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; max-width: 1200px; margin: 20px auto; padding: 20px; }}
+                .staff-schedule-table {{ border-collapse: collapse; width: 100%; }}
+                .staff-schedule-table th, .staff-schedule-table td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+                .staff-schedule-table th {{ background-color: #f2f2f2; }}
+                .summary {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+            </style>
+        </head>
+        <body>
+            <h2>👥 Staff Weekly Schedule</h2>
+            
+            <div class="summary">
+                <h3>📊 Summary</h3>
+                <p><strong>Total Staff:</strong> {len(STAFF_SCHEDULES)}</p>
+                <p><strong>Locations Covered:</strong> Brooklyn, Manhattan, Queens</p>
+                <p><strong>Last Updated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            </div>
+            
+            {schedule_html}
+            
+            <h3>📝 Routing Logic:</h3>
+            <ul>
+                <li><strong>Home Location:</strong> Used for fallback routing when staff works away from home</li>
+                <li><strong>Working Location:</strong> Primary input for finding direct managers</li>
+                <li><strong>Complex Logic:</strong> System considers timing, manager availability, and priority rules</li>
+                <li><strong>Not Simple:</strong> Doesn't always route to working location managers (see documentation)</li>
+            </ul>
+            
+            <p><a href="/">← Back to Home</a> | <a href="/schedule">View Manager Schedule</a></p>
+        </body>
+        </html>
+        '''
+    except Exception as e:
+        return f'<html><body><h2>❌ Error loading staff schedule:</h2><p>{str(e)}</p><p><a href="/">← Back to Home</a></p></body></html>'
+
 @app.route('/health')
 def health_check():
     """Health check endpoint"""
@@ -355,7 +881,8 @@ def health_check():
             'timestamp': datetime.now().isoformat(),
             'twilio_configured': bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN),
             'phone_number': TWILIO_PHONE_NUMBER,
-            'schedule_loaded': routing_system.df_schedule is not None
+            'schedule_loaded': routing_system.df_schedule is not None,
+            'total_staff': len(STAFF_SCHEDULES)
         })
     except Exception as e:
         return jsonify({
