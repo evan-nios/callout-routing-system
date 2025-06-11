@@ -837,6 +837,7 @@ def test_routing_endpoint():
                         time_str = parts[1]
                         
                         # Convert to datetime object
+                        from datetime import timedelta
                         today = datetime.now()
                         days_ahead = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].index(day_name) - today.weekday()
                         if days_ahead <= 0:
@@ -905,6 +906,9 @@ def test_routing_endpoint():
                 else:
                     managers_list = "❌ No managers found (check routing logic)"
                 
+                direct_managers_display = ', '.join(direct_managers) if 'direct_managers' in locals() else 'Unknown'
+                responsible_managers_display = ', '.join(responsible_managers) if responsible_managers else 'None'
+                
                 return f'''
                 <html>
                 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px;">
@@ -916,9 +920,9 @@ def test_routing_endpoint():
                     <h3>Responsible Managers:</h3>
                     <p>{managers_list}</p>
                     <h3>Debug Info:</h3>
-                    <p><strong>Manager Names:</strong> {', '.join(responsible_managers) if responsible_managers else 'None'}</p>
+                    <p><strong>Manager Names:</strong> {responsible_managers_display}</p>
                     <p><strong>Total Contacts:</strong> {len(contact_info)}</p>
-                    <p><strong>Direct Managers Found:</strong> {', '.join(direct_managers) if 'direct_managers' in locals() else 'Unknown'}</p>
+                    <p><strong>Direct Managers Found:</strong> {direct_managers_display}</p>
                     <p><em>Check server logs for detailed debug information</em></p>
                     <p><a href="/test-routing">← Test Again</a></p>
                 </body>
@@ -932,6 +936,48 @@ def test_routing_endpoint():
                 return jsonify(error_result), 400
             else:
                 return f'<html><body><h2>❌ Error:</h2><p>{str(e)}</p><p><a href="/test-routing">← Try Again</a></p></body></html>'
+    
+    # GET request - return test form
+    return '''
+    <html>
+    <head><title>Test Call-Out Routing</title></head>
+    <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px;">
+        <h2>🧪 Test Call-Out Routing</h2>
+        <form method="post">
+            <p>
+                <label><strong>Staff Home Location:</strong></label><br>
+                <select name="staff_home_location" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                    <option value="">Select...</option>
+                    <option value="Brooklyn">Brooklyn</option>
+                    <option value="Manhattan">Manhattan</option>
+                    <option value="Queens">Queens</option>
+                </select>
+            </p>
+            <p>
+                <label><strong>Staff Working Location Today:</strong></label><br>
+                <select name="staff_working_location" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                    <option value="">Select...</option>
+                    <option value="Brooklyn">Brooklyn</option>
+                    <option value="Manhattan">Manhattan</option>
+                    <option value="Queens">Queens</option>
+                </select>
+            </p>
+            <p>
+                <label><strong>Test Time:</strong></label><br>
+                <input type="text" name="test_time" placeholder="Tuesday 10:30" required 
+                       style="width: 100%; padding: 8px; margin-top: 5px;">
+                <small>Format: DayName HH:MM (e.g., "Wednesday 14:30")</small>
+            </p>
+            <p>
+                <button type="submit" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
+                    Test Routing
+                </button>
+            </p>
+        </form>
+        <p><a href="/">← Back to Home</a></p>
+    </body>
+    </html>
+    '''
 
 @app.route('/schedule')
 def view_schedule():
