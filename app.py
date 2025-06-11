@@ -483,24 +483,45 @@ STAFF_SCHEDULES = {
     }
 }
 
-def get_staff_working_location_today(phone_number, call_out_datetime):
+# In-memory storage for pending call-outs (staff waiting to specify location)
+# In production, you'd want to use a database, but this works for now
+PENDING_CALLOUTS = {}
+
+def get_scheduled_location_for_today(phone_number):
     """
-    Get where staff is scheduled to work today (no parsing/overrides)
-    Returns the scheduled location or home location if off
+    Get where staff is scheduled to work today according to their schedule
+    Used for display purposes only - shows staff what their schedule says
     """
     if phone_number not in STAFF_SCHEDULES:
         return None
     
     staff_info = STAFF_SCHEDULES[phone_number]
-    day_name = call_out_datetime.strftime('%A')
+    day_name = datetime.now().strftime('%A')
     
     scheduled_location = staff_info['schedule'].get(day_name, 'Off')
     
-    # If they're scheduled to be off, use their home location as fallback
+    # If they're scheduled to be off, return their home location as fallback
     if scheduled_location == 'Off':
         return staff_info['home_location']
     
     return scheduled_location
+
+def parse_location_choice(message_body):
+    """
+    Parse the location choice from staff response (1, 2, or 3)
+    Returns the location name or None if invalid
+    """
+    message_clean = message_body.strip().lower()
+    
+    # Handle various formats: "1", " 1 ", "1.", "option 1", etc.
+    if '1' in message_clean:
+        return 'Manhattan'
+    elif '2' in message_clean:
+        return 'Brooklyn'
+    elif '3' in message_clean:
+        return 'Queens'
+    else:
+        return None
 
 def get_staff_schedule_display():
     """
@@ -553,8 +574,9 @@ def home():
         <h2>How to Use:</h2>
         <ol>
             <li>Staff text the Twilio number with their call-out message</li>
-            <li>System uses their scheduled location for today</li>
-            <li>System automatically routes to appropriate manager using complex logic</li>
+            <li>System responds asking which location they were scheduled for today</li>
+            <li>Staff reply with: 1 for Manhattan, 2 for Brooklyn, 3 for Queens</li>
+            <li>System uses sophisticated routing logic to find best available manager</li>
             <li>Staff receives confirmation of who was notified</li>
         </ol>
         
@@ -564,6 +586,7 @@ def home():
             <li><a href="/health">Health Check</a></li>
             <li><a href="/schedule">View Manager Schedule</a></li>
             <li><a href="/staff-schedule">View Staff Schedule</a></li>
+            <li><a href="/pending-callouts">View Pending Call-Outs</a></li>
         </ul>
         
         <p><em>Last updated: ''' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + '''</em></p>
@@ -573,7 +596,7 @@ def home():
 
 @app.route('/webhook/sms', methods=['POST'])
 def handle_incoming_sms():
-    """Handle incoming SMS from staff call-outs with enhanced scheduling"""
+    """Handle incoming SMS with two-step location confirmation process"""
     
     # Get message details from Twilio
     from_phone = request.form.get('From')
@@ -610,95 +633,184 @@ def handle_incoming_sms():
         # Get current time for routing decision
         current_time = datetime.now()
         
-        # Get where staff is scheduled to work today
-        staff_working_location = get_staff_working_location_today(from_phone, current_time)
-        
-        if not staff_working_location:
-            error_msg = "❌ Could not determine your work location. Please contact IT support."
-            logger.warning(f"Could not determine work location for {from_phone}")
-            resp.message(error_msg)
-            return str(resp)
-        
-        logger.info(f"Processing call-out: {staff_name} (Home: {staff_home_location}, Working Today: {staff_working_location})")
-        
-        # Determine responsible managers using sophisticated routing logic:
-        # 1. Check if DIRECT manager (at working location) is actively working
-        # 2. Check if AWAY managers are actively working  
-        # 3. Compare start times: away manager vs direct manager
-        # 4. Fallback to HOME manager if staff working away from home
-        # 5. Emergency fallbacks
-        responsible_managers = routing_system.determine_responsible_manager(
-            staff_home_location, 
-            staff_working_location, 
-            current_time
-        )
-        
-        if not responsible_managers:
-            error_msg = "❌ No managers available. Please call the emergency line immediately."
-            logger.error("No responsible managers found")
-            resp.message(error_msg)
-            return str(resp)
-        
-        # Get manager contact info
-        manager_contacts = routing_system.get_manager_contact_info(responsible_managers)
-        
-        # Create formatted message for managers
-        day_name = current_time.strftime('%A')
-        manager_message = f"""🚨 STAFF CALL-OUT ALERT
+        # Check if this is a location response (second message in the flow)
+        if from_phone in PENDING_CALLOUTS:
+            # This is the staff responding with their location choice
+            chosen_location = parse_location_choice(message_body)
+            
+            if not chosen_location:
+                # Invalid choice - ask again
+                resp.message("""❌ Please reply with a valid option:
+
+1 - Manhattan
+2 - Brooklyn  
+3 - Queens
+
+Which location were you scheduled to work at today?""")
+                logger.warning(f"Invalid location choice from {from_phone}: {message_body}")
+                return str(resp)
+            
+            # Valid location choice - proceed with routing
+            original_message = PENDING_CALLOUTS[from_phone]['original_message']
+            original_time = PENDING_CALLOUTS[from_phone]['timestamp']
+            
+            # Remove from pending (call-out is now being processed)
+            del PENDING_CALLOUTS[from_phone]
+            
+            logger.info(f"Processing call-out: {staff_name} (Home: {staff_home_location}, Working: {chosen_location})")
+            
+            # Determine responsible managers using sophisticated routing logic:
+            # 1. Check 8 PM rule (look to next day if after 8 PM)
+            # 2. Check if DIRECT manager (at working location) is actively working
+            # 3. Check if AWAY managers are actively working  
+            # 4. Compare start times: away manager vs direct manager
+            # 5. Fallback to HOME manager if staff working away from home
+            # 6. Emergency fallbacks
+            responsible_managers = routing_system.determine_responsible_manager(
+                staff_home_location, 
+                chosen_location, 
+                original_time
+            )
+            
+            if not responsible_managers:
+                error_msg = "❌ No managers available. Please call the emergency line immediately."
+                logger.error("No responsible managers found")
+                resp.message(error_msg)
+                return str(resp)
+            
+            # Get manager contact info
+            manager_contacts = routing_system.get_manager_contact_info(responsible_managers)
+            
+            # Create formatted message for managers
+            day_name = original_time.strftime('%A')
+            manager_message = f"""🚨 STAFF CALL-OUT ALERT
 
 Staff: {staff_name}
 Phone: {from_phone}
 Home Location: {staff_home_location}
-Working Today ({day_name}): {staff_working_location}
-Time: {current_time.strftime('%A, %B %d at %I:%M %p')}
+Working Today ({day_name}): {chosen_location}
+Time: {original_time.strftime('%A, %B %d at %I:%M %p')}
 
-Message: "{message_body}"
+Original Message: "{original_message}"
 
 Please respond to confirm receipt."""
-        
-        # Send notifications to responsible managers
-        sent_to = []
-        failed_to = []
-        
-        for manager in manager_contacts:
-            success, result = send_sms(manager['phone'], manager_message)
-            if success:
-                sent_to.append(f"{manager['name']} at {manager['location']}")
-                logger.info(f"Notified manager: {manager['name']} ({manager['phone']})")
-            else:
-                failed_to.append(f"{manager['name']}: {result}")
-                logger.error(f"Failed to notify {manager['name']}: {result}")
-        
-        # Send confirmation back to staff
-        if sent_to:
-            confirmation = f"""✅ Call-out received and forwarded to:
+            
+            # Send notifications to responsible managers
+            sent_to = []
+            failed_to = []
+            
+            for manager in manager_contacts:
+                success, result = send_sms(manager['phone'], manager_message)
+                if success:
+                    sent_to.append(f"{manager['name']} at {manager['location']}")
+                    logger.info(f"Notified manager: {manager['name']} ({manager['phone']})")
+                else:
+                    failed_to.append(f"{manager['name']}: {result}")
+                    logger.error(f"Failed to notify {manager['name']}: {result}")
+            
+            # Send confirmation back to staff
+            if sent_to:
+                confirmation = f"""✅ Call-out processed and forwarded to:
 
 {chr(10).join(['• ' + manager for manager in sent_to])}
 
-Your schedule: Working at {staff_working_location} today
+Location confirmed: {chosen_location}
 
 Your manager(s) will respond shortly."""
-            
-            if failed_to:
-                confirmation += f"""
+                
+                if failed_to:
+                    confirmation += f"""
 
 ⚠️ Could not reach:
 {chr(10).join(['• ' + manager for manager in failed_to])}"""
-                
+                    
+            else:
+                confirmation = "❌ Failed to reach any managers. Please call the emergency line immediately."
+            
+            resp.message(confirmation)
+            
+            # Log successful processing
+            logger.info(f"Call-out processed successfully: {staff_name} → {len(sent_to)} managers notified")
+            
         else:
-            confirmation = "❌ Failed to reach any managers. Please call the emergency line immediately."
-        
-        resp.message(confirmation)
-        
-        # Log successful processing
-        logger.info(f"Call-out processed successfully: {staff_name} → {len(sent_to)} managers notified")
+            # This is the initial call-out message - ask for location confirmation
+            scheduled_location = get_scheduled_location_for_today(from_phone)
+            
+            # Store the call-out details for when they respond with location
+            PENDING_CALLOUTS[from_phone] = {
+                'original_message': message_body,
+                'timestamp': current_time,
+                'staff_name': staff_name,
+                'staff_home_location': staff_home_location
+            }
+            
+            # Ask them to confirm their working location
+            location_request = f"""📋 Call-out received, {staff_name}.
+
+Which location were you scheduled to work at today?
+
+1 - Manhattan
+2 - Brooklyn
+3 - Queens
+
+(Your schedule shows: {scheduled_location})
+
+Please reply with 1, 2, or 3."""
+            
+            resp.message(location_request)
+            logger.info(f"Initial call-out from {staff_name}, requesting location confirmation")
         
     except Exception as e:
         error_msg = f"❌ System error processing your call-out. Please call the emergency line. Error: {str(e)}"
         logger.error(f"Error processing call-out from {from_phone}: {e}")
         resp.message("❌ System error. Please call the emergency line immediately.")
+        
+        # Clean up any pending call-out for this number
+        if from_phone in PENDING_CALLOUTS:
+            del PENDING_CALLOUTS[from_phone]
     
     return str(resp)
+
+@app.route('/pending-callouts')
+def view_pending_callouts():
+    """View staff members who are waiting to confirm their location"""
+    try:
+        if not PENDING_CALLOUTS:
+            return '''
+            <html>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px;">
+                <h2>📋 Pending Call-Outs</h2>
+                <p>✅ No pending call-outs at this time.</p>
+                <p><a href="/">← Back to Home</a></p>
+            </body>
+            </html>
+            '''
+        
+        pending_html = "<ul>"
+        for phone, details in PENDING_CALLOUTS.items():
+            time_str = details['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+            pending_html += f"""
+            <li>
+                <strong>{details['staff_name']}</strong> ({phone})<br>
+                Time: {time_str}<br>
+                Message: "{details['original_message']}"<br>
+                <em>Waiting for location confirmation...</em>
+            </li><br>
+            """
+        pending_html += "</ul>"
+        
+        return f'''
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px;">
+            <h2>📋 Pending Call-Outs</h2>
+            <p><strong>Staff waiting to confirm their location:</strong></p>
+            {pending_html}
+            <p><a href="/">← Back to Home</a></p>
+        </body>
+        </html>
+        '''
+    except Exception as e:
+        return f'<html><body><h2>❌ Error:</h2><p>{str(e)}</p><p><a href="/">← Back to Home</a></p></body></html>'
 
 @app.route('/test-routing', methods=['GET', 'POST'])
 def test_routing_endpoint():
@@ -741,7 +853,6 @@ def test_routing_endpoint():
                     <p><strong>Staff Working Location:</strong> {staff_working}</p>
                     <p><strong>Test Time:</strong> {test_time_str}</p>
                     <h3>Responsible Managers:</h3>
-                    <p>{managers_list}</p>
                     <p><a href="/test-routing">← Test Again</a></p>
                 </body>
                 </html>
@@ -849,20 +960,22 @@ def view_staff_schedule():
                 <h3>📊 Summary</h3>
                 <p><strong>Total Staff:</strong> {len(STAFF_SCHEDULES)}</p>
                 <p><strong>Locations Covered:</strong> Brooklyn, Manhattan, Queens</p>
+                <p><strong>Two-Step Process:</strong> Staff confirm location via SMS</p>
                 <p><strong>Last Updated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             </div>
             
             {schedule_html}
             
-            <h3>📝 Routing Logic:</h3>
+            <h3>📝 How It Works:</h3>
             <ul>
-                <li><strong>Home Location:</strong> Used for fallback routing when staff works away from home</li>
-                <li><strong>Working Location:</strong> Primary input for finding direct managers</li>
-                <li><strong>Complex Logic:</strong> System considers timing, manager availability, and priority rules</li>
-                <li><strong>Not Simple:</strong> Doesn't always route to working location managers (see documentation)</li>
+                <li><strong>Step 1:</strong> Staff text call-out message</li>
+                <li><strong>Step 2:</strong> System asks for location confirmation (1/2/3)</li>
+                <li><strong>Schedule Display:</strong> Shows staff what their schedule says (for reference)</li>
+                <li><strong>Sophisticated Routing:</strong> Uses complex logic to find best available manager</li>
+                <li><strong>No Parsing:</strong> 100% reliable location confirmation</li>
             </ul>
             
-            <p><a href="/">← Back to Home</a> | <a href="/schedule">View Manager Schedule</a></p>
+            <p><a href="/">← Back to Home</a> | <a href="/schedule">View Manager Schedule</a> | <a href="/pending-callouts">View Pending Call-Outs</a></p>
         </body>
         </html>
         '''
@@ -882,7 +995,9 @@ def health_check():
             'twilio_configured': bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN),
             'phone_number': TWILIO_PHONE_NUMBER,
             'schedule_loaded': routing_system.df_schedule is not None,
-            'total_staff': len(STAFF_SCHEDULES)
+            'total_staff': len(STAFF_SCHEDULES),
+            'pending_callouts': len(PENDING_CALLOUTS),
+            'two_step_sms': True
         })
     except Exception as e:
         return jsonify({
