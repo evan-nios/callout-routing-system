@@ -6,16 +6,16 @@ class CallOutRoutingSystem:
     def __init__(self):
         # Your existing schedule data
         self.manager_schedule = {
-            'Manager Name': ['Dia', 'Kat'],
-            'Location': ['Brooklyn', 'Manhattan'],
-            'Phone Number': ['+13473150211', '+13477168143'],
-            'Sunday': ['-', '-'],
-            'Monday': ['-', '8:45 AM - 4:45 PM'],
-            'Tuesday': ['12:00 PM - 8:00 PM', '8:45 AM - 4:45 PM'],
-            'Wednesday': ['8:45 AM - 5:30 PM', '8:45 AM - 4:45 PM'],
-            'Thursday': ['8:45 AM - 5:30 PM', '12:00 PM - 8:00 PM'],
-            'Friday': ['8:45 AM - 5:30 PM', '8:45 AM - 4:45 PM'],
-            'Saturday': ['10:45 AM - 6:00 PM', '-']
+            'Manager Name': ['Dia', 'Kat', 'Josh'],
+            'Location': ['Brooklyn', 'Manhattan', 'Queens'],
+            'Phone Number': ['+13473150211', '+13477168143', '+19175197053'],
+            'Sunday': ['-', '-', '-'],
+            'Monday': ['-', '8:45 AM - 4:45 PM', '9:00 AM - 6:00 PM'],
+            'Tuesday': ['12:00 PM - 8:00 PM', '8:45 AM - 4:45 PM', '9:00 AM - 6:00 PM'],
+            'Wednesday': ['8:45 AM - 5:30 PM', '8:45 AM - 4:45 PM', '9:00 AM - 6:00 PM'],
+            'Thursday': ['8:45 AM - 5:30 PM', '12:00 PM - 8:00 PM', '9:00 AM - 6:00 PM'],
+            'Friday': ['8:45 AM - 5:30 PM', '8:45 AM - 4:45 PM', '9:00 AM - 6:00 PM'],
+            'Saturday': ['10:45 AM - 6:00 PM', '-', '-']
         }
         
         self.df_schedule = pd.DataFrame(self.manager_schedule)
@@ -99,29 +99,6 @@ class CallOutRoutingSystem:
     def determine_responsible_manager(self, staff_home_location, staff_working_location, callout_datetime):
         """Main logic to determine responsible manager(s) for a call-out"""
         
-        # CHECK FOR TIMED MANAGER OVERRIDE (NEW CODE)
-        import os
-        from datetime import datetime
-        
-        override_manager = os.environ.get('MANAGER_OVERRIDE')
-        override_start = os.environ.get('MANAGER_OVERRIDE_START')
-        override_end = os.environ.get('MANAGER_OVERRIDE_END')
-        
-        if override_manager and override_start and override_end:
-            try:
-                start_datetime = datetime.strptime(override_start, '%Y-%m-%d %H:%M')
-                end_datetime = datetime.strptime(override_end, '%Y-%m-%d %H:%M')
-                current_datetime = callout_datetime
-                
-                # Check if current time is within override period
-                if start_datetime <= current_datetime <= end_datetime:
-                    if override_manager in self.df_schedule['Manager Name'].values:
-                        return [override_manager]
-            except ValueError:
-                # If date format is wrong, ignore override and use normal logic
-                pass
-        
-        # EXISTING LOGIC CONTINUES BELOW (UNCHANGED)
         # Get managers at staff's working location (DIRECT MANAGERS)
         direct_managers = self.get_managers_by_location(staff_working_location)
         
