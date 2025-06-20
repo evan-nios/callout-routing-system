@@ -1269,6 +1269,30 @@ def routing_visualization():
             .back-link a:hover {
                 text-decoration: underline;
             }
+            
+            @media (max-width: 1400px) {
+                .schedule-table {
+                    font-size: 10px;
+                }
+                .schedule-table th,
+                .schedule-table td {
+                    padding: 4px 2px;
+                }
+            }
+            
+            @media (max-width: 1000px) {
+                .manager-schedules {
+                    grid-template-columns: 1fr;
+                }
+                .legend {
+                    flex-direction: column;
+                    align-items: center;
+                }
+                .scenario-tabs {
+                    flex-direction: column;
+                    align-items: center;
+                }
+            }
         </style>
     </head>
     <body>
@@ -1360,7 +1384,7 @@ def routing_visualization():
                 <button class="tab" onclick="showScenario('queens-manhattan')">Queens @ Manhattan</button>
             </div>
             
-            <!-- All 9 scenarios with tables -->
+            <!-- Brooklyn Staff Scenarios -->
             <div id="brooklyn-home" class="scenario-section active">
                 <div class="scenario-description">
                     <strong>Scenario:</strong> Brooklyn staff member working at their home location (Brooklyn)<br>
@@ -1383,7 +1407,183 @@ def routing_visualization():
                 </table>
             </div>
             
-            <!-- Other scenarios would go here - keeping short for brevity -->
+            <div id="brooklyn-manhattan" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Brooklyn staff member working away at Manhattan<br>
+                    <strong>Direct Manager:</strong> Kat (Manhattan) | <strong>Away Managers:</strong> Dia (Brooklyn), Josh (Queens)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="brooklyn-manhattan-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="brooklyn-queens" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Brooklyn staff member working away at Queens<br>
+                    <strong>Direct Manager:</strong> Josh (Queens) | <strong>Away Managers:</strong> Dia (Brooklyn), Kat (Manhattan)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="brooklyn-queens-table"></tbody>
+                </table>
+            </div>
+            
+            <!-- Manhattan Staff Scenarios -->
+            <div id="manhattan-home" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Manhattan staff member working at their home location (Manhattan)<br>
+                    <strong>Direct Manager:</strong> Kat (Manhattan) | <strong>Away Managers:</strong> Dia (Brooklyn), Josh (Queens)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manhattan-home-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="manhattan-brooklyn" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Manhattan staff member working away at Brooklyn<br>
+                    <strong>Direct Manager:</strong> Dia (Brooklyn) | <strong>Away Managers:</strong> Kat (Manhattan), Josh (Queens)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manhattan-brooklyn-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="manhattan-queens" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Manhattan staff member working away at Queens<br>
+                    <strong>Direct Manager:</strong> Josh (Queens) | <strong>Away Managers:</strong> Kat (Manhattan), Dia (Brooklyn)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manhattan-queens-table"></tbody>
+                </table>
+            </div>
+            
+            <!-- Queens Staff Scenarios -->
+            <div id="queens-home" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Queens staff member working at their home location (Queens)<br>
+                    <strong>Direct Manager:</strong> Josh (Queens) | <strong>Away Managers:</strong> Dia (Brooklyn), Kat (Manhattan)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queens-home-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="queens-brooklyn" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Queens staff member working away at Brooklyn<br>
+                    <strong>Direct Manager:</strong> Dia (Brooklyn) | <strong>Away Managers:</strong> Josh (Queens), Kat (Manhattan)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queens-brooklyn-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="queens-manhattan" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Queens staff member working away at Manhattan<br>
+                    <strong>Direct Manager:</strong> Kat (Manhattan) | <strong>Away Managers:</strong> Josh (Queens), Dia (Brooklyn)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queens-manhattan-table"></tbody>
+                </table>
+            </div>
             
             <div class="back-link">
                 <a href="/">← Back to Home</a> | 
@@ -1393,50 +1593,194 @@ def routing_visualization():
         </div>
 
         <script>
-            // Manager schedules with latest updates
+            // Complete manager schedules with latest updates
             const schedules = {
                 'Dia': {
                     'Sunday': null,
                     'Monday': null,
-                    'Tuesday': {start: 12*60, end: 20*60},
-                    'Wednesday': {start: 8*60+30, end: 20*60},
-                    'Thursday': {start: 8*60+30, end: 20*60},
-                    'Friday': {start: 8*60+30, end: 20*60},
-                    'Saturday': {start: 10*60+45, end: 20*60}
+                    'Tuesday': {start: 12*60, end: 20*60}, // 12:00 PM - 8:00 PM
+                    'Wednesday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
+                    'Thursday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
+                    'Friday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
+                    'Saturday': {start: 10*60+45, end: 20*60} // 10:45 AM - 8:00 PM
                 },
                 'Kat': {
                     'Sunday': null,
-                    'Monday': {start: 8*60+30, end: 20*60},
-                    'Tuesday': {start: 8*60+30, end: 20*60},
-                    'Wednesday': {start: 8*60+30, end: 20*60},
-                    'Thursday': {start: 12*60, end: 20*60},
-                    'Friday': {start: 8*60+30, end: 20*60},
+                    'Monday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
+                    'Tuesday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
+                    'Wednesday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
+                    'Thursday': {start: 12*60, end: 20*60}, // 12:00 PM - 8:00 PM
+                    'Friday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
                     'Saturday': null
                 },
                 'Josh': {
                     'Sunday': null,
-                    'Monday': {start: 8*60+30, end: 16*60},
-                    'Tuesday': {start: 8*60+30, end: 16*60},
-                    'Wednesday': {start: 8*60+30, end: 16*60},
-                    'Thursday': {start: 8*60+30, end: 16*60},
-                    'Friday': {start: 8*60+30, end: 16*60},
+                    'Monday': {start: 8*60+30, end: 16*60}, // 8:30 AM - 4:00 PM
+                    'Tuesday': {start: 8*60+30, end: 16*60}, // 8:30 AM - 4:00 PM
+                    'Wednesday': {start: 8*60+30, end: 16*60}, // 8:30 AM - 4:00 PM
+                    'Thursday': {start: 8*60+30, end: 16*60}, // 8:30 AM - 4:00 PM
+                    'Friday': {start: 8*60+30, end: 16*60}, // 8:30 AM - 4:00 PM
                     'Saturday': null
                 }
             };
             
-            // Routing logic functions would go here
-            // (Same JavaScript from the artifact but simplified for brevity)
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            function isManagerWorking(manager, day, timeMinutes) {
+                const schedule = schedules[manager][day];
+                if (!schedule) return false;
+                return timeMinutes >= schedule.start && timeMinutes <= schedule.end;
+            }
+            
+            function getNextManagerOnDuty(day, timeMinutes, directManager, awayManagers) {
+                const candidateStarts = [];
+                
+                // Check direct manager
+                const directSchedule = schedules[directManager][day];
+                if (directSchedule && directSchedule.start > timeMinutes) {
+                    candidateStarts.push({manager: directManager, start: directSchedule.start, isDirect: true});
+                }
+                
+                // Check away managers
+                for (const awayManager of awayManagers) {
+                    const awaySchedule = schedules[awayManager][day];
+                    if (awaySchedule && awaySchedule.start > timeMinutes) {
+                        candidateStarts.push({manager: awayManager, start: awaySchedule.start, isDirect: false});
+                    }
+                }
+                
+                if (candidateStarts.length > 0) {
+                    candidateStarts.sort((a, b) => {
+                        if (a.start === b.start) return a.isDirect ? -1 : 1;
+                        return a.start - b.start;
+                    });
+                    return candidateStarts[0].manager;
+                }
+                
+                // Look at next day
+                const nextDayIndex = (days.indexOf(day) + 1) % 7;
+                const nextDay = days[nextDayIndex];
+                
+                const nextDayStarts = [];
+                const nextDirectSchedule = schedules[directManager][nextDay];
+                if (nextDirectSchedule) {
+                    nextDayStarts.push({manager: directManager, start: nextDirectSchedule.start, isDirect: true});
+                }
+                
+                for (const awayManager of awayManagers) {
+                    const nextAwaySchedule = schedules[awayManager][nextDay];
+                    if (nextAwaySchedule) {
+                        nextDayStarts.push({manager: awayManager, start: nextAwaySchedule.start, isDirect: false});
+                    }
+                }
+                
+                if (nextDayStarts.length > 0) {
+                    nextDayStarts.sort((a, b) => {
+                        if (a.start === b.start) return a.isDirect ? -1 : 1;
+                        return a.start - b.start;
+                    });
+                    return nextDayStarts[0].manager;
+                }
+                
+                return 'EMERGENCY';
+            }
+            
+            function determineResponsibleManager(directManager, awayManagers, day, timeMinutes) {
+                // After 8 PM rule
+                if (timeMinutes >= 20*60) {
+                    const nextDayIndex = (days.indexOf(day) + 1) % 7;
+                    const nextDay = days[nextDayIndex];
+                    return determineResponsibleManager(directManager, awayManagers, nextDay, 0);
+                }
+                
+                // Check if direct manager is actively working
+                if (isManagerWorking(directManager, day, timeMinutes)) {
+                    return directManager;
+                }
+                
+                // Check if any away manager is actively working
+                for (const awayManager of awayManagers) {
+                    if (isManagerWorking(awayManager, day, timeMinutes)) {
+                        return awayManager;
+                    }
+                }
+                
+                // Find next scheduled
+                return getNextManagerOnDuty(day, timeMinutes, directManager, awayManagers);
+            }
+            
+            function getManagerClass(manager) {
+                if (manager === 'Dia') return 'dia-color';
+                if (manager === 'Kat') return 'kat-color';
+                if (manager === 'Josh') return 'josh-color';
+                if (manager === 'EMERGENCY') return 'fallback-color';
+                return 'off-color';
+            }
+            
+            function generateTable(directManager, awayManagers, tableId) {
+                const tbody = document.getElementById(tableId);
+                if (!tbody) return; // Skip if table doesn't exist
+                tbody.innerHTML = '';
+                
+                for (let hour = 0; hour < 24; hour++) {
+                    const row = document.createElement('tr');
+                    
+                    // Time column
+                    const timeCell = document.createElement('td');
+                    timeCell.className = 'time-col';
+                    timeCell.textContent = hour.toString().padStart(2, '0') + ':00';
+                    row.appendChild(timeCell);
+                    
+                    // Day columns
+                    days.forEach(day => {
+                        const cell = document.createElement('td');
+                        const timeMinutes = hour * 60;
+                        const responsibleManager = determineResponsibleManager(directManager, awayManagers, day, timeMinutes);
+                        
+                        cell.textContent = responsibleManager;
+                        cell.className = getManagerClass(responsibleManager);
+                        row.appendChild(cell);
+                    });
+                    
+                    tbody.appendChild(row);
+                }
+            }
             
             function showScenario(scenarioId) {
+                // Hide all scenarios
                 document.querySelectorAll('.scenario-section').forEach(section => {
                     section.classList.remove('active');
                 });
+                
+                // Remove active class from all tabs
                 document.querySelectorAll('.tab').forEach(tab => {
                     tab.classList.remove('active');
                 });
+                
+                // Show selected scenario
                 document.getElementById(scenarioId).classList.add('active');
+                
+                // Add active class to clicked tab
                 event.target.classList.add('active');
             }
+            
+            // Generate all tables on page load
+            window.onload = function() {
+                // Brooklyn staff scenarios
+                generateTable('Dia', ['Kat', 'Josh'], 'brooklyn-home-table'); // Brooklyn @ home
+                generateTable('Kat', ['Dia', 'Josh'], 'brooklyn-manhattan-table'); // Brooklyn @ Manhattan
+                generateTable('Josh', ['Dia', 'Kat'], 'brooklyn-queens-table'); // Brooklyn @ Queens
+                
+                // Manhattan staff scenarios
+                generateTable('Kat', ['Dia', 'Josh'], 'manhattan-home-table'); // Manhattan @ home
+                generateTable('Dia', ['Kat', 'Josh'], 'manhattan-brooklyn-table'); // Manhattan @ Brooklyn
+                generateTable('Josh', ['Kat', 'Dia'], 'manhattan-queens-table'); // Manhattan @ Queens
+                
+                // Queens staff scenarios
+                generateTable('Josh', ['Dia', 'Kat'], 'queens-home-table'); // Queens @ home
+                generateTable('Dia', ['Josh', 'Kat'], 'queens-brooklyn-table'); // Queens @ Brooklyn
+                generateTable('Kat', ['Josh', 'Dia'], 'queens-manhattan-table'); // Queens @ Manhattan
+            };
         </script>
     </body>
     </html>
