@@ -6,6 +6,7 @@ from datetime import datetime
 import logging
 from dotenv import load_dotenv
 import pandas as pd
+import json
 
 # Load environment variables
 load_dotenv()
@@ -560,6 +561,65 @@ def send_sms(to_phone, message):
         logger.error(f"Failed to send SMS to {to_phone}: {e}")
         return False, str(e)
 
+# MANUAL OVERRIDE FUNCTIONS
+def load_manual_overrides():
+    """Load manual routing overrides from JSON file"""
+    try:
+        if os.path.exists('manual_overrides.json'):
+            with open('manual_overrides.json', 'r') as f:
+                return json.load(f)
+        else:
+            # Create default structure if file doesn't exist
+            default_overrides = {
+                "brooklyn-home": {},
+                "brooklyn-manhattan": {},
+                "brooklyn-queens": {},
+                "manhattan-home": {},
+                "manhattan-brooklyn": {},
+                "manhattan-queens": {},
+                "queens-home": {},
+                "queens-brooklyn": {},
+                "queens-manhattan": {}
+            }
+            save_manual_overrides(default_overrides)
+            return default_overrides
+    except Exception as e:
+        logger.error(f"Error loading manual overrides: {e}")
+        return {}
+
+def save_manual_overrides(overrides):
+    """Save manual routing overrides to JSON file"""
+    try:
+        with open('manual_overrides.json', 'w') as f:
+            json.dump(overrides, f, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving manual overrides: {e}")
+        return False
+
+def get_manual_override(scenario, day, hour):
+    """Check if there's a manual override for a specific time slot"""
+    overrides = load_manual_overrides()
+    scenario_key = f"{day}-{hour:02d}"  # e.g., "Monday-09"
+    return overrides.get(scenario, {}).get(scenario_key, None)
+
+def set_manual_override(scenario, day, hour, manager):
+    """Set a manual override for a specific time slot"""
+    overrides = load_manual_overrides()
+    if scenario not in overrides:
+        overrides[scenario] = {}
+    
+    scenario_key = f"{day}-{hour:02d}"  # e.g., "Monday-09"
+    
+    if manager == "AUTO" or manager == "":
+        # Remove override to return to automatic
+        if scenario_key in overrides[scenario]:
+            del overrides[scenario][scenario_key]
+    else:
+        overrides[scenario][scenario_key] = manager
+    
+    return save_manual_overrides(overrides)
+
 @app.route('/')
 def home():
     """Home page with basic info"""
@@ -1079,58 +1139,887 @@ def health_check():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+# MANUAL OVERRIDE API ENDPOINTS
+@app.route('/save-override', methods=['POST'])
+def save_override():
+    """API endpoint to save manual routing overrides"""
+    try:
+        data = request.get_json()
+        scenario = data.get('scenario')
+        day = data.get('day')
+        hour = int(data.get('hour'))
+        manager = data.get('manager')
+        
+        # Validate inputs
+        valid_scenarios = ['brooklyn-home', 'brooklyn-manhattan', 'brooklyn-queens',
+                          'manhattan-home', 'manhattan-brooklyn', 'manhattan-queens',
+                          'queens-home', 'queens-brooklyn', 'queens-manhattan']
+        
+        valid_days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        valid_managers = ['Dia', 'Kat', 'Josh', 'EMERGENCY', 'AUTO']
+        
+        if (scenario not in valid_scenarios or 
+            day not in valid_days or 
+            hour < 0 or hour > 23 or 
+            manager not in valid_managers):
+            return jsonify({'success': False, 'error': 'Invalid input parameters'}), 400
+        
+        # Save the override
+        success = set_manual_override(scenario, day, hour, manager)
+        
+        if success:
+            logger.info(f"Manual override saved: {scenario} {day} {hour}:00 → {manager}")
+            return jsonify({'success': True, 'message': 'Override saved successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to save override'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in save_override endpoint: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/get-overrides/<scenario>')
+def get_overrides(scenario):
+    """API endpoint to get all overrides for a scenario"""
+    try:
+        overrides = load_manual_overrides()
+        scenario_overrides = overrides.get(scenario, {})
+        return jsonify({'success': True, 'overrides': scenario_overrides})
+    except Exception as e:
+        logger.error(f"Error getting overrides for {scenario}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/visualization')
 def routing_visualization():
-    """Simple test visualization"""
+    """Complete editable routing visualization - All 9 scenarios"""
     return '''
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
-        <title>Routing Test</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Editable Call-Out Routing</title>
         <style>
-            .dia-color { background-color: #3498db; color: white; padding: 5px; }
-            .kat-color { background-color: #e74c3c; color: white; padding: 5px; }
-            .josh-color { background-color: #27ae60; color: white; padding: 5px; }
-            .schedule-table { border-collapse: collapse; width: 100%; }
-            .schedule-table th, .schedule-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin: 20px;
+                background-color: #f5f5f5;
+            }
+            .container {
+                max-width: 1600px;
+                margin: 0 auto;
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            h1 {
+                color: #2c3e50;
+                text-align: center;
+                margin-bottom: 10px;
+                font-size: 28px;
+            }
+            .subtitle {
+                text-align: center;
+                color: #7f8c8d;
+                margin-bottom: 30px;
+                font-size: 16px;
+            }
+            .edit-notice {
+                background: #e8f6f3;
+                padding: 15px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+                border-left: 4px solid #27ae60;
+            }
+            .edit-notice h3 {
+                color: #27ae60;
+                margin-top: 0;
+            }
+            
+            .legend {
+                display: flex;
+                justify-content: center;
+                gap: 20px;
+                margin-bottom: 30px;
+                flex-wrap: wrap;
+            }
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-weight: 500;
+                font-size: 14px;
+            }
+            .dia-color { background-color: #3498db; color: white; }
+            .kat-color { background-color: #e74c3c; color: white; }
+            .josh-color { background-color: #27ae60; color: white; }
+            .emergency-color { background-color: #f39c12; color: white; }
+            .manual-color { background-color: #9b59b6; color: white; }
+            
+            .scenario-tabs {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 20px;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .tab {
+                padding: 10px 16px;
+                background: #ecf0f1;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 500;
+                transition: all 0.3s;
+                font-size: 13px;
+            }
+            .tab.active {
+                background: #3498db;
+                color: white;
+            }
+            .tab:hover {
+                background: #2980b9;
+                color: white;
+            }
+            
+            .schedule-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+                font-size: 11px;
+            }
+            .schedule-table th {
+                background: #34495e;
+                color: white;
+                padding: 10px 4px;
+                text-align: center;
+                border: 1px solid #2c3e50;
+                font-weight: 600;
+            }
+            .schedule-table td {
+                padding: 6px 3px;
+                text-align: center;
+                border: 1px solid #bdc3c7;
+                font-weight: 500;
+                min-width: 90px;
+                position: relative;
+            }
+            .time-col {
+                background: #ecf0f1;
+                font-weight: 600;
+                min-width: 70px;
+            }
+            
+            /* Editable cell styles */
+            .editable-cell {
+                cursor: pointer;
+                transition: background-color 0.2s;
+            }
+            .editable-cell:hover {
+                background-color: rgba(52, 152, 219, 0.1) !important;
+                border: 2px solid #3498db;
+            }
+            .manual-override {
+                border: 2px solid #9b59b6 !important;
+                font-weight: bold;
+            }
+            .manual-override::after {
+                content: " 📝";
+                font-size: 10px;
+            }
+            
+            /* Dropdown styles */
+            .manager-dropdown {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                border: none;
+                background: white;
+                font-size: 11px;
+                font-weight: 500;
+                z-index: 10;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            }
+            
+            .scenario-section {
+                display: none;
+            }
+            .scenario-section.active {
+                display: block;
+            }
+            
+            .scenario-description {
+                background: #f8f9fa;
+                padding: 15px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+                border-left: 4px solid #3498db;
+            }
+            
+            .controls {
+                text-align: center;
+                margin: 20px 0;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 6px;
+            }
+            .btn {
+                padding: 8px 16px;
+                margin: 0 5px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: 500;
+            }
+            .btn-primary {
+                background: #3498db;
+                color: white;
+            }
+            .btn-secondary {
+                background: #95a5a6;
+                color: white;
+            }
+            .btn:hover {
+                opacity: 0.8;
+            }
+            
+            .status-message {
+                text-align: center;
+                margin: 10px 0;
+                padding: 10px;
+                border-radius: 4px;
+                display: none;
+            }
+            .status-success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .status-error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            
+            @media (max-width: 1200px) {
+                .scenario-tabs {
+                    flex-direction: column;
+                    align-items: center;
+                }
+                .schedule-table {
+                    font-size: 10px;
+                }
+            }
         </style>
     </head>
     <body>
-        <h1>Test Routing Visualization</h1>
-        <p>This is a test to see if the page loads.</p>
-        
-        <table class="schedule-table">
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Sunday</th>
-                    <th>Monday</th>
-                    <th>Tuesday</th>
-                </tr>
-            </thead>
-            <tbody id="test-table">
-                <!-- Table will be populated by JavaScript -->
-            </tbody>
-        </table>
-        
-        <p><a href="/">← Back to Home</a></p>
-        
+        <div class="container">
+            <h1>🚨 Editable Call-Out Routing</h1>
+            <p class="subtitle">All 9 Scenarios | Click any time slot to change manager assignment | Changes are saved permanently</p>
+            
+            <div class="edit-notice">
+                <h3>📝 How to Edit</h3>
+                <ul>
+                    <li><strong>Click any cell</strong> to open manager dropdown</li>
+                    <li><strong>Select manager</strong> from dropdown menu</li>
+                    <li><strong>Changes save automatically</strong> and override automatic routing</li>
+                    <li><strong>Purple border + 📝</strong> indicates manual override</li>
+                    <li><strong>Select "AUTO"</strong> to return to automatic routing</li>
+                </ul>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-item dia-color">
+                    <span>🔵</span> Dia (Brooklyn)
+                </div>
+                <div class="legend-item kat-color">
+                    <span>🔴</span> Kat (Manhattan)
+                </div>
+                <div class="legend-item josh-color">
+                    <span>🟢</span> Josh (Queens)
+                </div>
+                <div class="legend-item emergency-color">
+                    <span>🟠</span> Emergency
+                </div>
+                <div class="legend-item manual-color">
+                    <span>🟣</span> Manual Override
+                </div>
+            </div>
+            
+            <div class="scenario-tabs">
+                <button class="tab active" onclick="showScenario('brooklyn-home')">Brooklyn @ Home</button>
+                <button class="tab" onclick="showScenario('brooklyn-manhattan')">Brooklyn @ Manhattan</button>
+                <button class="tab" onclick="showScenario('brooklyn-queens')">Brooklyn @ Queens</button>
+                <button class="tab" onclick="showScenario('manhattan-home')">Manhattan @ Home</button>
+                <button class="tab" onclick="showScenario('manhattan-brooklyn')">Manhattan @ Brooklyn</button>
+                <button class="tab" onclick="showScenario('manhattan-queens')">Manhattan @ Queens</button>
+                <button class="tab" onclick="showScenario('queens-home')">Queens @ Home</button>
+                <button class="tab" onclick="showScenario('queens-brooklyn')">Queens @ Brooklyn</button>
+                <button class="tab" onclick="showScenario('queens-manhattan')">Queens @ Manhattan</button>
+            </div>
+            
+            <div class="controls">
+                <button class="btn btn-secondary" onclick="reloadScenario()">🔄 Refresh Current View</button>
+                <button class="btn btn-primary" onclick="clearCurrentScenario()">🗑️ Clear Current Scenario</button>
+            </div>
+            
+            <div id="status-message" class="status-message"></div>
+            
+            <!-- Brooklyn Staff Scenarios -->
+            <div id="brooklyn-home" class="scenario-section active">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Brooklyn staff member working at their home location (Brooklyn)<br>
+                    <strong>Direct Manager:</strong> Dia (Brooklyn) | <strong>Away Managers:</strong> Kat (Manhattan), Josh (Queens)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="brooklyn-home-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="brooklyn-manhattan" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Brooklyn staff member working away at Manhattan<br>
+                    <strong>Direct Manager:</strong> Kat (Manhattan) | <strong>Away Managers:</strong> Dia (Brooklyn), Josh (Queens)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="brooklyn-manhattan-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="brooklyn-queens" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Brooklyn staff member working away at Queens<br>
+                    <strong>Direct Manager:</strong> Josh (Queens) | <strong>Away Managers:</strong> Dia (Brooklyn), Kat (Manhattan)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="brooklyn-queens-table"></tbody>
+                </table>
+            </div>
+            
+            <!-- Manhattan Staff Scenarios -->
+            <div id="manhattan-home" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Manhattan staff member working at their home location (Manhattan)<br>
+                    <strong>Direct Manager:</strong> Kat (Manhattan) | <strong>Away Managers:</strong> Dia (Brooklyn), Josh (Queens)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manhattan-home-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="manhattan-brooklyn" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Manhattan staff member working away at Brooklyn<br>
+                    <strong>Direct Manager:</strong> Dia (Brooklyn) | <strong>Away Managers:</strong> Kat (Manhattan), Josh (Queens)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manhattan-brooklyn-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="manhattan-queens" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Manhattan staff member working away at Queens<br>
+                    <strong>Direct Manager:</strong> Josh (Queens) | <strong>Away Managers:</strong> Kat (Manhattan), Dia (Brooklyn)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manhattan-queens-table"></tbody>
+                </table>
+            </div>
+            
+            <!-- Queens Staff Scenarios -->
+            <div id="queens-home" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Queens staff member working at their home location (Queens)<br>
+                    <strong>Direct Manager:</strong> Josh (Queens) | <strong>Away Managers:</strong> Dia (Brooklyn), Kat (Manhattan)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queens-home-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="queens-brooklyn" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Queens staff member working away at Brooklyn<br>
+                    <strong>Direct Manager:</strong> Dia (Brooklyn) | <strong>Away Managers:</strong> Josh (Queens), Kat (Manhattan)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queens-brooklyn-table"></tbody>
+                </table>
+            </div>
+            
+            <div id="queens-manhattan" class="scenario-section">
+                <div class="scenario-description">
+                    <strong>Scenario:</strong> Queens staff member working away at Manhattan<br>
+                    <strong>Direct Manager:</strong> Kat (Manhattan) | <strong>Away Managers:</strong> Josh (Queens), Dia (Brooklyn)
+                </div>
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sunday</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queens-manhattan-table"></tbody>
+                </table>
+            </div>
+            
+            <p style="text-align: center; margin-top: 30px;">
+                <a href="/">← Back to Home</a> | 
+                <a href="/test-routing">Test Routing Logic</a> | 
+                <a href="/schedule">View Manager Schedule</a>
+            </p>
+        </div>
+
         <script>
-            console.log("JavaScript is running!");
+            let currentScenario = 'brooklyn-home';
+            let manualOverrides = {};
             
-            // Simple test
-            const tbody = document.getElementById('test-table');
-            console.log("Found tbody:", tbody);
+            // Manager schedules
+            const schedules = {
+                'Dia': {
+                    'Sunday': null,
+                    'Monday': null,
+                    'Tuesday': {start: 12*60, end: 20*60},
+                    'Wednesday': {start: 8*60+30, end: 20*60},
+                    'Thursday': {start: 8*60+30, end: 20*60},
+                    'Friday': {start: 8*60+30, end: 20*60},
+                    'Saturday': {start: 10*60+45, end: 20*60}
+                },
+                'Kat': {
+                    'Sunday': null,
+                    'Monday': {start: 8*60+30, end: 20*60},
+                    'Tuesday': {start: 8*60+30, end: 20*60},
+                    'Wednesday': {start: 8*60+30, end: 20*60},
+                    'Thursday': {start: 12*60, end: 20*60},
+                    'Friday': {start: 8*60+30, end: 20*60},
+                    'Saturday': null
+                },
+                'Josh': {
+                    'Sunday': null,
+                    'Monday': {start: 8*60+30, end: 16*60},
+                    'Tuesday': {start: 8*60+30, end: 16*60},
+                    'Wednesday': {start: 8*60+30, end: 16*60},
+                    'Thursday': {start: 8*60+30, end: 16*60},
+                    'Friday': {start: 8*60+30, end: 16*60},
+                    'Saturday': null
+                }
+            };
             
-            if (tbody) {
-                // Add a simple test row
-                const row = document.createElement('tr');
-                row.innerHTML = '<td>09:00</td><td class="josh-color">Josh</td><td class="kat-color">Kat</td><td class="dia-color">Dia</td>';
-                tbody.appendChild(row);
-                console.log("Added test row");
-            } else {
-                console.error("Could not find tbody element");
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            // Define the manager configurations for each scenario
+            const scenarioConfigs = {
+                'brooklyn-home': { direct: 'Dia', away: ['Kat', 'Josh'], tableId: 'brooklyn-home-table' },
+                'brooklyn-manhattan': { direct: 'Kat', away: ['Dia', 'Josh'], tableId: 'brooklyn-manhattan-table' },
+                'brooklyn-queens': { direct: 'Josh', away: ['Dia', 'Kat'], tableId: 'brooklyn-queens-table' },
+                'manhattan-home': { direct: 'Kat', away: ['Dia', 'Josh'], tableId: 'manhattan-home-table' },
+                'manhattan-brooklyn': { direct: 'Dia', away: ['Kat', 'Josh'], tableId: 'manhattan-brooklyn-table' },
+                'manhattan-queens': { direct: 'Josh', away: ['Kat', 'Dia'], tableId: 'manhattan-queens-table' },
+                'queens-home': { direct: 'Josh', away: ['Dia', 'Kat'], tableId: 'queens-home-table' },
+                'queens-brooklyn': { direct: 'Dia', away: ['Josh', 'Kat'], tableId: 'queens-brooklyn-table' },
+                'queens-manhattan': { direct: 'Kat', away: ['Josh', 'Dia'], tableId: 'queens-manhattan-table' }
+            };
+            
+            // Load manual overrides for current scenario
+            async function loadOverrides(scenario) {
+                try {
+                    const response = await fetch(`/get-overrides/${scenario}`);
+                    const data = await response.json();
+                    if (data.success) {
+                        manualOverrides = data.overrides;
+                    }
+                } catch (error) {
+                    console.error('Error loading overrides:', error);
+                }
             }
+            
+            // Save manual override
+            async function saveOverride(scenario, day, hour, manager) {
+                try {
+                    const response = await fetch('/save-override', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            scenario: scenario,
+                            day: day,
+                            hour: hour,
+                            manager: manager
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        showStatus('Override saved successfully!', 'success');
+                        // Update local cache
+                        const key = `${day}-${hour.toString().padStart(2, '0')}`;
+                        if (manager === 'AUTO') {
+                            delete manualOverrides[key];
+                        } else {
+                            manualOverrides[key] = manager;
+                        }
+                        return true;
+                    } else {
+                        showStatus('Error saving override: ' + data.error, 'error');
+                        return false;
+                    }
+                } catch (error) {
+                    showStatus('Error saving override: ' + error.message, 'error');
+                    return false;
+                }
+            }
+            
+            // Show status message
+            function showStatus(message, type) {
+                const statusDiv = document.getElementById('status-message');
+                statusDiv.textContent = message;
+                statusDiv.className = `status-message status-${type}`;
+                statusDiv.style.display = 'block';
+                
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+            }
+            
+            // Get manager class for styling
+            function getManagerClass(manager) {
+                if (manager === 'Dia') return 'dia-color';
+                if (manager === 'Kat') return 'kat-color';
+                if (manager === 'Josh') return 'josh-color';
+                if (manager === 'EMERGENCY') return 'emergency-color';
+                return 'off-color';
+            }
+            
+            // Determine responsible manager (automatic routing logic)
+            function determineResponsibleManager(directManager, awayManagers, day, timeMinutes) {
+                // Check for manual override first
+                const overrideKey = `${day}-${Math.floor(timeMinutes/60).toString().padStart(2, '0')}`;
+                if (manualOverrides[overrideKey]) {
+                    return manualOverrides[overrideKey];
+                }
+                
+                // Use existing automatic logic
+                if (timeMinutes >= 20*60) {
+                    const nextDayIndex = (days.indexOf(day) + 1) % 7;
+                    const nextDay = days[nextDayIndex];
+                    return determineResponsibleManager(directManager, awayManagers, nextDay, 0);
+                }
+                
+                // Check if direct manager is actively working
+                const directSchedule = schedules[directManager][day];
+                if (directSchedule && timeMinutes >= directSchedule.start && timeMinutes <= directSchedule.end) {
+                    return directManager;
+                }
+                
+                // Check if any away manager is actively working
+                for (const awayManager of awayManagers) {
+                    const awaySchedule = schedules[awayManager][day];
+                    if (awaySchedule && timeMinutes >= awaySchedule.start && timeMinutes <= awaySchedule.end) {
+                        return awayManager;
+                    }
+                }
+                
+                // Find next scheduled manager
+                const candidateStarts = [];
+                if (directSchedule && directSchedule.start > timeMinutes) {
+                    candidateStarts.push({manager: directManager, start: directSchedule.start, isDirect: true});
+                }
+                
+                for (const awayManager of awayManagers) {
+                    const awaySchedule = schedules[awayManager][day];
+                    if (awaySchedule && awaySchedule.start > timeMinutes) {
+                        candidateStarts.push({manager: awayManager, start: awaySchedule.start, isDirect: false});
+                    }
+                }
+                
+                if (candidateStarts.length > 0) {
+                    candidateStarts.sort((a, b) => {
+                        if (a.start === b.start) return a.isDirect ? -1 : 1;
+                        return a.start - b.start;
+                    });
+                    return candidateStarts[0].manager;
+                }
+                
+                return 'EMERGENCY';
+            }
+            
+            // Create editable cell
+            function createEditableCell(manager, day, hour, scenario) {
+                const cell = document.createElement('td');
+                const overrideKey = `${day}-${hour.toString().padStart(2, '0')}`;
+                const isManualOverride = manualOverrides[overrideKey];
+                
+                cell.textContent = manager;
+                cell.className = `editable-cell ${getManagerClass(manager)}`;
+                
+                if (isManualOverride) {
+                    cell.classList.add('manual-override');
+                }
+                
+                cell.onclick = function() {
+                    showManagerDropdown(cell, day, hour, scenario, manager);
+                };
+                
+                return cell;
+            }
+            
+            // Show manager selection dropdown
+            function showManagerDropdown(cell, day, hour, scenario, currentManager) {
+                const dropdown = document.createElement('select');
+                dropdown.className = 'manager-dropdown';
+                
+                const options = ['AUTO', 'Dia', 'Kat', 'Josh', 'EMERGENCY'];
+                options.forEach(option => {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = option;
+                    optionElement.textContent = option;
+                    if (option === currentManager) {
+                        optionElement.selected = true;
+                    }
+                    dropdown.appendChild(optionElement);
+                });
+                
+                dropdown.onchange = async function() {
+                    const newManager = dropdown.value;
+                    const success = await saveOverride(scenario, day, hour, newManager);
+                    if (success) {
+                        // Refresh the current table
+                        const config = scenarioConfigs[currentScenario];
+                        if (config) {
+                            generateTable(config.direct, config.away, config.tableId);
+                        }
+                    }
+                };
+                
+                dropdown.onblur = function() {
+                    if (dropdown.parentNode) {
+                        dropdown.parentNode.removeChild(dropdown);
+                    }
+                };
+                
+                cell.appendChild(dropdown);
+                dropdown.focus();
+            }
+            
+            // Generate table with editable cells
+            function generateTable(directManager, awayManagers, tableId) {
+                const tbody = document.getElementById(tableId);
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                
+                for (let hour = 0; hour < 24; hour++) {
+                    const row = document.createElement('tr');
+                    
+                    // Time column
+                    const timeCell = document.createElement('td');
+                    timeCell.className = 'time-col';
+                    timeCell.textContent = hour.toString().padStart(2, '0') + ':00';
+                    row.appendChild(timeCell);
+                    
+                    // Day columns
+                    days.forEach(day => {
+                        const timeMinutes = hour * 60;
+                        const responsibleManager = determineResponsibleManager(directManager, awayManagers, day, timeMinutes);
+                        const cell = createEditableCell(responsibleManager, day, hour, currentScenario);
+                        row.appendChild(cell);
+                    });
+                    
+                    tbody.appendChild(row);
+                }
+            }
+            
+            // Show scenario
+            function showScenario(scenarioId) {
+                // Hide all scenarios
+                document.querySelectorAll('.scenario-section').forEach(section => {
+                    section.classList.remove('active');
+                });
+                
+                // Remove active class from all tabs
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                // Show selected scenario
+                const targetSection = document.getElementById(scenarioId);
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                }
+                
+                // Add active class to clicked tab
+                event.target.classList.add('active');
+                
+                // Update current scenario and reload data
+                currentScenario = scenarioId;
+                
+                const config = scenarioConfigs[scenarioId];
+                if (config) {
+                    loadOverrides(scenarioId).then(() => {
+                        generateTable(config.direct, config.away, config.tableId);
+                    });
+                } else {
+                    console.error('Unknown scenario:', scenarioId);
+                }
+            }
+            
+            // Reload current scenario
+            function reloadScenario() {
+                const config = scenarioConfigs[currentScenario];
+                if (config) {
+                    loadOverrides(currentScenario).then(() => {
+                        generateTable(config.direct, config.away, config.tableId);
+                        showStatus('View refreshed!', 'success');
+                    });
+                }
+            }
+            
+            // Clear all overrides for current scenario
+            async function clearCurrentScenario() {
+                if (!confirm(`Are you sure you want to clear all manual overrides for the current scenario (${currentScenario.replace('-', ' @ ')})?`)) {
+                    return;
+                }
+                
+                try {
+                    const overrides = await fetch(`/get-overrides/${currentScenario}`).then(r => r.json());
+                    if (overrides.success) {
+                        const currentOverrides = overrides.overrides;
+                        const keys = Object.keys(currentOverrides);
+                        
+                        if (keys.length === 0) {
+                            showStatus('No overrides to clear in this scenario.', 'error');
+                            return;
+                        }
+                        
+                        // Clear each override by setting it to AUTO
+                        let cleared = 0;
+                        for (const key of keys) {
+                            const [day, hourStr] = key.split('-');
+                            const hour = parseInt(hourStr);
+                            const success = await saveOverride(currentScenario, day, hour, 'AUTO');
+                            if (success) cleared++;
+                        }
+                        
+                        showStatus(`Cleared ${cleared} manual overrides from this scenario.`, 'success');
+                        reloadScenario();
+                    }
+                } catch (error) {
+                    showStatus('Error clearing overrides: ' + error.message, 'error');
+                }
+            }
+            
+            // Initialize page
+            window.onload = async function() {
+                await loadOverrides('brooklyn-home');
+                generateTable('Dia', ['Kat', 'Josh'], 'brooklyn-home-table');
+            };
         </script>
     </body>
     </html>
