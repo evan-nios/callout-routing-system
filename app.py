@@ -808,13 +808,11 @@ Your manager(s) will respond shortly."""
             # Ask them to confirm their working location
             location_request = f"""📋 Call-out received, {staff_name}.
 
-Which location were you scheduled to work at today?
+Which location are you scheduled to work at?
 
 1 - Manhattan
 2 - Brooklyn
 3 - Queens
-
-(Your schedule shows: {scheduled_location})
 
 Please reply with 1, 2, or 3."""
             
