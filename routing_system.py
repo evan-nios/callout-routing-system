@@ -9,7 +9,7 @@ class CallOutRoutingSystem:
             'Manager Name': ['Dia', 'Kat', 'Josh'],
             'Location': ['Brooklyn', 'Manhattan', 'Queens'],
             'Phone Number': ['+13473150211', '+13477168143', '+19175197053'],
-            'Sunday': ['-', '-', '-'],
+            'Sunday': ['-', '8:30 AM - 8:00 PM', '-'],
             'Monday': ['-', '8:30 AM - 8:00 PM', '8:30 AM - 4:00 PM'],
             'Tuesday': ['12:00 PM - 8:00 PM', '8:30 AM - 8:00 PM', '8:30 AM - 4:00 PM'],
             'Wednesday': ['8:30 AM - 8:00 PM', '8:30 AM - 8:00 PM', '8:30 AM - 4:00 PM'],
