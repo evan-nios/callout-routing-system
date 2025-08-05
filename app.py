@@ -1693,7 +1693,7 @@ def routing_visualization():
                     'Saturday': {start: 10*60+45, end: 20*60}
                 },
                 'Kat': {
-                    'Sunday': null,
+                    'Sunday': {start: 8*60+30, end: 20*60},
                     'Monday': {start: 8*60+30, end: 20*60},
                     'Tuesday': {start: 8*60+30, end: 20*60},
                     'Wednesday': {start: 8*60+30, end: 20*60},
