@@ -1341,11 +1341,11 @@ def routing_visualization():
                     <h4>👨‍💼 Josh (Queens)</h4>
                     <ul>
                         <li>Sunday: OFF</li>
-                        <li>Monday: 8:30 AM - 4:00 PM</li>
-                        <li>Tuesday: 8:30 AM - 4:00 PM</li>
-                        <li>Wednesday: 8:30 AM - 4:00 PM</li>
-                        <li>Thursday: 8:30 AM - 4:00 PM</li>
-                        <li>Friday: 8:30 AM - 4:00 PM</li>
+                        <li>Monday: 8:30 AM - 8:00 PM</li>
+                        <li>Tuesday: 8:30 AM - 8:00 PM</li>
+                        <li>Wednesday: 8:30 AM - 8:00 PM</li>
+                        <li>Thursday: 8:30 AM - 8:00 PM</li>
+                        <li>Friday: 8:30 AM - 8:00 PM</li>
                         <li>Saturday: OFF</li>
                     </ul>
                 </div>
@@ -1605,7 +1605,7 @@ def routing_visualization():
                     'Saturday': {start: 10*60+45, end: 20*60} // 10:45 AM - 8:00 PM
                 },
                 'Kat': {
-                    'Sunday': null,
+                    'Sunday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
                     'Monday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
                     'Tuesday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
                     'Wednesday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
@@ -1615,11 +1615,11 @@ def routing_visualization():
                 },
                 'Josh': {
                     'Sunday': null,
-                    'Monday': {start: 8*60+30, end: 16*60}, // 8:30 AM - 4:00 PM
-                    'Tuesday': {start: 8*60+30, end: 16*60}, // 8:30 AM - 4:00 PM
-                    'Wednesday': {start: 8*60+30, end: 16*60}, // 8:30 AM - 4:00 PM
-                    'Thursday': {start: 8*60+30, end: 16*60}, // 8:30 AM - 4:00 PM
-                    'Friday': {start: 8*60+30, end: 16*60}, // 8:30 AM - 4:00 PM
+                    'Monday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
+                    'Tuesday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
+                    'Wednesday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
+                    'Thursday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
+                    'Friday': {start: 8*60+30, end: 20*60}, // 8:30 AM - 8:00 PM
                     'Saturday': null
                 }
             };
