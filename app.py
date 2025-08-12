@@ -467,6 +467,19 @@ STAFF_SCHEDULES = {
             'Saturday': 'Queens'
         }
     },
+	'+13478195525': {  # Mirian
+        'name': 'Mirian',
+        'home_location': 'Queens',
+        'schedule': {
+            'Sunday': 'Off',
+            'Monday': 'Off',
+            'Tuesday': 'Queens',
+            'Wednesday': 'Off',
+            'Thursday': 'Queens',
+            'Friday': 'Off',
+            'Saturday': 'Manhattan'
+        }
+    },
 
     # EXISTING STAFF (keep your entry)
     '+16316243242': {  # Evan
