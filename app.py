@@ -1701,11 +1701,11 @@ def routing_visualization():
                 },
                 'Josh': {
                     'Sunday': null,
-                    'Monday': {start: 8*60+30, end: 16*60},
-                    'Tuesday': {start: 8*60+30, end: 16*60},
-                    'Wednesday': {start: 8*60+30, end: 16*60},
-                    'Thursday': {start: 8*60+30, end: 16*60},
-                    'Friday': {start: 8*60+30, end: 16*60},
+                    'Monday': {start: 8*60+30, end: 20*60},
+                    'Tuesday': {start: 8*60+30, end: 20*60},
+                    'Wednesday': {start: 8*60+30, end: 20*60},
+                    'Thursday': {start: 8*60+30, end: 20*60},
+                    'Friday': {start: 8*60+30, end: 20*60},
                     'Saturday': null
                 }
             };
