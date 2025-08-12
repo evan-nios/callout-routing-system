@@ -1328,7 +1328,7 @@ def routing_visualization():
                 <div class="manager-schedule kat-schedule">
                     <h4>👨‍💼 Kat (Manhattan)</h4>
                     <ul>
-                        <li>Sunday: OFF</li>
+                        <li>Sunday: 8:30 AM - 8:00 PM</li>
                         <li>Monday: 8:30 AM - 8:00 PM</li>
                         <li>Tuesday: 8:30 AM - 8:00 PM</li>
                         <li>Wednesday: 8:30 AM - 8:00 PM</li>
