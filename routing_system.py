@@ -11,10 +11,10 @@ class CallOutRoutingSystem:
             'Phone Number': ['+13473150211', '+13477168143', '+19175197053'],
             'Sunday': ['-', '8:30 AM - 8:00 PM', '-'],
             'Monday': ['-', '8:30 AM - 8:00 PM', '8:30 AM - 4:00 PM'],
-            'Tuesday': ['12:00 PM - 8:00 PM', '8:30 AM - 8:00 PM', '8:30 AM - 4:00 PM'],
-            'Wednesday': ['8:30 AM - 8:00 PM', '8:30 AM - 8:00 PM', '8:30 AM - 4:00 PM'],
-            'Thursday': ['8:30 AM - 8:00 PM', '12:00 PM - 8:00 PM', '8:30 AM - 4:00 PM'],
-            'Friday': ['8:30 AM - 8:00 PM', '8:30 AM - 8:00 PM', '8:30 AM - 4:00 PM'],
+            'Tuesday': ['12:00 PM - 8:00 PM', '8:30 AM - 8:00 PM', '8:30 AM - 8:00 PM'],
+            'Wednesday': ['8:30 AM - 8:00 PM', '8:30 AM - 8:00 PM', '8:30 AM - 8:00 PM'],
+            'Thursday': ['8:30 AM - 8:00 PM', '12:00 PM - 8:00 PM', '8:30 AM - 8:00 PM'],
+            'Friday': ['8:30 AM - 8:00 PM', '8:30 AM - 8:00 PM', '8:30 AM - 8:00 PM'],
             'Saturday': ['10:45 AM - 8:00 PM', '-', '-']
         }
         
